@@ -2,16 +2,19 @@
 const models = require('../models');
 
 // get the Cat model
-const { Cat } = models;
+const { Cat } = models.Cat;
+
+// get the Dog Model
+//const { Dog } = models;
 
 // default fake data so that we have something to work with until we make a real Cat
-const defaultData = {
+const defaultCatData = {
   name: 'unknown',
   bedsOwned: 0,
 };
 
 // object for us to keep track of the last Cat we made and dynamically update it sometimes
-let lastAdded = new Cat(defaultData);
+let lastAdded = new Cat(defaultCatData);
 
 // Function to handle rendering the index page.
 const hostIndex = (req, res) => {
@@ -148,7 +151,50 @@ const setName = async (req, res) => {
 };
 
 // Function to handle searching a cat by name.
-const searchName = async (req, res) => {
+const searchCatName = async (req, res) => {
+  /* When the user makes a POST request, bodyParser populates req.body with the parameters
+     as we saw in setName() above. In the case of searchName, the user is making a GET request.
+     GET requests do not have a body, but they can have query parameters. bodyParser will also
+     handle these, and store them in req.query instead.
+
+     If the user does not give us a name to search by, throw an error.
+  */
+  if (!req.query.name) {
+    return res.status(400).json({ error: 'Name is required to perform a search' });
+  }
+
+  /* If they do give us a name to search, we will as the database for a cat with that name.
+     Remember that since we are interacting with the database, we want to wrap our code in a
+     try/catch in case the database throws an error or doesn't respond.
+  */
+  try {
+    /* Just like Cat.find() in hostPage1() above, Mongoose models also have a .findOne()
+       that will find a single document in the database that matches the search parameters.
+       This function is faster, as it will stop searching after it finds one document that
+       matches the parameters. The downside is you cannot get multiple responses with it.
+
+       One of three things will occur when trying to findOne in the database.
+        1) An error will be thrown, which will stop execution of the try block and move to the catch block.
+        2) Everything works, but the name was not found in the database returning an empty doc object.
+        3) Everything works, and an object matching the search is found.
+    */
+    const doc = await Cat.findOne({ name: req.query.name }).exec();
+
+    // If we do not find something that matches our search, doc will be empty.
+    if (!doc) {
+      return res.json({ error: 'No cats found' });
+    }
+
+    // Otherwise, we got a result and will send it back to the user.
+    return res.json({ name: doc.name, beds: doc.bedsOwned });
+  } catch (err) {
+    // If there is an error, log it and send the user an error message.
+    console.log(err);
+    return res.status(500).json({ error: 'Something went wrong' });
+  }
+};
+
+const searchDogName = async (req, res) => {
   /* When the user makes a POST request, bodyParser populates req.body with the parameters
      as we saw in setName() above. In the case of searchName, the user is making a GET request.
      GET requests do not have a body, but they can have query parameters. bodyParser will also
@@ -244,6 +290,6 @@ module.exports = {
   getName,
   setName,
   updateLast,
-  searchName,
+  searchCatName,
   notFound,
 };
